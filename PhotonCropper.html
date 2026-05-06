@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhotonCropper</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      background: #000000;
+      cursor: none;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    .title {
+      position: fixed;
+      top: 30px;
+      width: 100%;
+      text-align: center;
+      color: rgba(255,255,255,0.8);
+      font-size: 1.2rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      pointer-events: none;
+      text-shadow: 0 0 15px rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="title">PhotonCropper.com</div>
+  <canvas id="space"></canvas>
+
+  <script>
+    const canvas = document.getElementById('space');
+    const ctx = canvas.getContext('2d');
+
+    let w = canvas.width = window.innerWidth;
+    let h = canvas.height = window.innerHeight;
+
+    const mouse = {
+      x: w / 2,
+      y: h / 2
+    };
+
+    const blackHole = {
+      x: w / 2,
+      y: h / 2,
+      radius: 85
+    };
+
+    const stars = [];
+    const particles = [];
+
+    window.addEventListener('resize', () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      blackHole.x = w / 2;
+      blackHole.y = h / 2;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+
+      for (let i = 0; i < 3; i++) {
+        particles.push({
+          x: mouse.x,
+          y: mouse.y,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          life: 1,
+          size: Math.random() * 3 + 1
+        });
+      }
+    });
+
+    function initStars() {
+      stars.length = 0;
+      for (let i = 0; i < 250; i++) {
+        stars.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          size: Math.random() * 2,
+          alpha: Math.random()
+        });
+      }
+    }
+
+    function drawStars() {
+      for (const star of stars) {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
+        ctx.fill();
+      }
+    }
+
+    function drawBlackHole(time) {
+      const rotation = time * 0.001;
+
+     
+      for (let i = 0; i < 50; i++) {
+        ctx.beginPath();
+        ctx.strokeStyle = `hsla(${30 + i * 2}, 100%, ${50 + i * 0.5}%, ${0.03})`;
+        ctx.lineWidth = 3;
+        ctx.ellipse(
+          blackHole.x,
+          blackHole.y,
+          blackHole.radius + i * 1.8,
+          (blackHole.radius / 2) + i * 0.4,
+          rotation + i * 0.05,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+
+      
+      const gradient = ctx.createRadialGradient(
+        blackHole.x,
+        blackHole.y,
+        blackHole.radius * 0.9,
+        blackHole.x,
+        blackHole.y,
+        blackHole.radius * 1.8
+      );
+      gradient.addColorStop(0, 'rgba(255,255,255,0.10)');
+      gradient.addColorStop(0.4, 'rgba(255,255,255,0.05)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.beginPath();
+      ctx.fillStyle = gradient;
+      ctx.arc(blackHole.x, blackHole.y, blackHole.radius * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      
+      ctx.beginPath();
+      ctx.arc(blackHole.x, blackHole.y, blackHole.radius + 2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      
+      ctx.beginPath();
+      ctx.fillStyle = '#000';
+      ctx.arc(blackHole.x, blackHole.y, blackHole.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function getDistortedPoint(x, y) {
+      let dx = blackHole.x - x;
+      let dy = blackHole.y - y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 20) dist = 20;
+
+      const force = Math.min(3500 / (dist * dist), 0.35);
+
+      return {
+        x: x + dx * force * dist,
+        y: y + dy * force * dist,
+        dist
+      };
+    }
+
+    function drawLightBeam() {
+      const distorted = getDistortedPoint(mouse.x, mouse.y);
+
+      
+      if (distorted.dist < 300) {
+        ctx.beginPath();
+        ctx.moveTo(mouse.x, mouse.y);
+
+        const controlX = (mouse.x + distorted.x) / 2 + (blackHole.x - mouse.x) * 0.25;
+        const controlY = (mouse.y + distorted.y) / 2 + (blackHole.y - mouse.y) * 0.25;
+
+        ctx.quadraticCurveTo(controlX, controlY, distorted.x, distorted.y);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = 'rgba(255,255,255,0.3)';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      
+      ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.shadowBlur = 25;
+      ctx.shadowColor = 'white';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        const dx = blackHole.x - p.x;
+        const dy = blackHole.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        const pull = 150 / (dist * dist + 50);
+
+        p.vx += dx * pull;
+        p.vy += dy * pull;
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.015;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${p.life})`;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'white';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (p.life <= 0 || dist < blackHole.radius) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function animate(time) {
+      ctx.clearRect(0, 0, w, h);
+
+      drawStars();
+      drawBlackHole(time);
+      drawLightBeam();
+      updateParticles();
+
+      requestAnimationFrame(animate);
+    }
+
+    initStars();
+    animate(0);
+  </script>
+</body>
+</html>
